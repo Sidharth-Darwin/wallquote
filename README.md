@@ -52,7 +52,7 @@ wallquote --random --show
 wallquote --daily
 ```
 
-#### **Get quotes from online API (can be used with --daily, --random or --create:**
+#### **Get quotes from online API (can be used with --daily, --random or --create):**
 
 ```bash
 wallquote --daily --online
