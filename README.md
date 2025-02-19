@@ -52,6 +52,12 @@ wallquote --random --show
 wallquote --daily
 ```
 
+#### **Get quotes from online API (can be used with --daily, --random or --create:**
+
+```bash
+wallquote --daily --online
+```
+
 ### 📖 **Quote Management**
 
 #### **List all quotes:**
