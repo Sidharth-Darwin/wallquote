@@ -7,7 +7,7 @@ setup(
     author='Sidharth D',
     author_email='zurajanaikatsurada1222@gmail.com',
     description='A command-line tool to generate quote wallpapers with customizable backgrounds.',
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='utf-8').read(),
     url='https://github.com/Sidharth-Darwin/wallquote',
     packages=find_packages(),
     classifiers=[
