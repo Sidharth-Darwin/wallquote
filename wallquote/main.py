@@ -8,6 +8,7 @@ import ctypes
 from datetime import datetime
 import pathlib
 import textwrap
+import requests
 
 QUOTE_FILE = "wallquote/quotes.json"
 BACKGROUND_DIR = "wallquote/bg_templates/"
@@ -213,7 +214,31 @@ def choose_random_bg_template():
     images = [img for img in os.listdir(BACKGROUND_DIR) if img.endswith((".png", ".jpg", ".jpeg"))]
     return os.path.join(BACKGROUND_DIR, random.choice(images)) if images else None
 
-def set_daily_wallpaper():
+def get_random_quote(from_online=False, daily_quote=False):
+    try:
+        if not from_online:
+            raise Exception
+        data = requests.get("https://stoic.tekloon.net/stoic-quote").json()["data"]
+        quote, author = data["quote"], data["author"]
+    except Exception as e:
+        if daily_quote:
+            day_of_year = datetime.now().timetuple().tm_yday
+            quotes = load_quotes()
+            if not quotes:
+                print("No quotes found! Add some first.")
+                return "", ""
+            today_quote = quotes[day_of_year % len(quotes)]
+            quote, author = today_quote.get("quote"), today_quote.get("author")
+        else:
+            quotes = load_quotes()
+            if not quotes:
+                print("No quotes found! Add some first.")
+                return "", ""
+            random_quote = random.choice(quotes)
+            quote, author = random_quote.get("quote"), random_quote.get("author")
+    return quote, author
+
+def set_daily_wallpaper(from_online=False):
     """
     Sets the desktop wallpaper to a daily quote wallpaper.
 
@@ -231,16 +256,11 @@ def set_daily_wallpaper():
         FileNotFoundError: If no background images are found or if the wallpaper
         image cannot be set.
     """
-    day_of_year = datetime.now().timetuple().tm_yday
-    quotes = load_quotes()
-    if not quotes:
-        print("No quotes found! Add some first.")
-        return
-    today_quote = quotes[day_of_year % len(quotes)]
-    path, _ = create_wallpaper(today_quote.get("quote"), today_quote.get("author"), bg_image=load_bg_image(choose_random_bg_template()))
+    quote, author = get_random_quote(from_online)
+    path, _ = create_wallpaper(quote, author, bg_image=load_bg_image(choose_random_bg_template()))
     set_wallpaper(path)
 
-def get_random_quote_wallpaper(out_image_path=None):
+def get_random_quote_wallpaper(out_image_path=None, from_online=False):
     """
     Returns a random quote wallpaper image path and the image object itself.
 
@@ -255,18 +275,15 @@ def get_random_quote_wallpaper(out_image_path=None):
     Returns:
         tuple: A tuple containing the path to the wallpaper image and the image object itself.
     """
-
-    quotes = load_quotes()
-    if not quotes:
-        print("No quotes found! Add some first.")
-        return
-    quote = random.choice(quotes)
+    quote, author = get_random_quote(from_online=from_online, daily_quote=False)
     template = choose_random_bg_template()
-    path, img = create_wallpaper(quote.get("quote"), quote.get("author"), bg_image=load_bg_image(template) if template else None, out_image_path=out_image_path)
+    path, img = create_wallpaper(quote, author, bg_image=load_bg_image(template) if template else None, out_image_path=out_image_path)
     return path, img
 
 def show_quotes_list(num):
     quotes = load_quotes()
+    if len(quotes) == 0:
+        print("No quotes found! Add some first.")
     for quote in quotes[-num:]:
         print(f"{quote.get('id')} - \"{quote.get('quote')}\" by \"{quote.get('author', 'Unknown')}\"")
 
@@ -302,9 +319,13 @@ def main():
 
     # ------------------[ Custom Wallpaper Creation ]------------------ #
     create_group = parser.add_argument_group("🎭 Custom Wallpaper Creation (Use with --create)")
-    create_group.add_argument("-q", "--quote", type=str, help="🖋️ Quote text for wallpaper (Required for --create).")
+    create_group.add_argument("-q", "--quote", type=str, help="🖋️ Quote text for wallpaper (Optional). If not specified, will generate random online or offline quote depending on --online.")
     create_group.add_argument("-b", "--background", metavar="PATH", type=str, help="🌄 Background image path (Optional).")
     create_group.add_argument("-a", "--author", metavar="AUTHOR", type=str, default=None, help="✍️ Author of the quote (Optional).")
+
+    # ------------------[ Api Options ]------------------ #
+    api_group = parser.add_argument_group("🌐 API Options")
+    api_group.add_argument("--online", action="store_true", help="🌐 Fetch a random stoic quote from an API. If API doesn't work, defaults to quotes from quotes.json file.")
 
     args = parser.parse_args()
 
@@ -312,13 +333,15 @@ def main():
     wallpaper_path = None
     wallpaper = None
     if args.daily:
-        set_daily_wallpaper()
+        set_daily_wallpaper(args.online)
     elif args.random:
-        wallpaper_path, wallpaper = get_random_quote_wallpaper(args.save_path)
+        wallpaper_path, wallpaper = get_random_quote_wallpaper(args.save_path, args.online)
     elif args.create:
-        if not args.quote:
-            parser.error("--create requires --quote to be specified.")
-        wallpaper_path, wallpaper = create_wallpaper(args.quote, args.author, load_bg_image(args.background), args.save_path)
+        if args.quote:
+            quote, author = args.quote, args.author
+        else:
+            quote, author = get_random_quote(args.online)
+        wallpaper_path, wallpaper = create_wallpaper(quote, author, load_bg_image(args.background) if args.background else None, args.save_path)
     elif args.quotes:
         if args.delete is not None:
             if args.delete < 0:
