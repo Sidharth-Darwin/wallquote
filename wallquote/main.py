@@ -9,10 +9,13 @@ from datetime import datetime
 import pathlib
 import textwrap
 import requests
+import sys
+import subprocess
 
-QUOTE_FILE = "wallquote/quotes.json"
-BACKGROUND_DIR = "wallquote/bg_templates/"
-OUTPUT_DIR = "wallquote/saved_bg_pics/"
+CWD = pathlib.Path(__file__).parent
+QUOTE_FILE = os.path.join(CWD, "quotes.json")
+BACKGROUND_DIR = os.path.join(CWD, "bg_templates/")
+OUTPUT_DIR = os.path.join(CWD, "saved_bg_pics/")
 
 
 def load_quotes():
@@ -147,7 +150,7 @@ def create_wallpaper(quote, author=None, bg_image=None, out_image_path=None):
     except IOError:
         font = ImageFont.load_default()
     max_chars_per_line = 30 
-    wrapped_text = textwrap.fill(quote, width=max_chars_per_line)
+    wrapped_text = textwrap.fill(quote, width=max_chars_per_line).capitalize()
     font_size = 80
     while True:
         font = ImageFont.truetype("arial.ttf", font_size)
@@ -158,7 +161,7 @@ def create_wallpaper(quote, author=None, bg_image=None, out_image_path=None):
         font_size -= 5 
     author_font_size = font_size // 2
     author_font = ImageFont.truetype("arial.ttf", author_font_size) if author else None
-    author_text = f"- {author}" if author else ""
+    author_text = f"- {' '.join([word.capitalize() for word in author.split(' ')])}" if author else ""
     author_bbox = draw.textbbox((0, 0), author_text, font=author_font) if author else (0, 0, 0, 0)
     author_width, author_height = author_bbox[2] - author_bbox[0], author_bbox[3] - author_bbox[1]
     x = (screen_width - text_width) // 2
@@ -171,7 +174,7 @@ def create_wallpaper(quote, author=None, bg_image=None, out_image_path=None):
     overlay_draw.rectangle([rect_x1, rect_y1, rect_x2, rect_y2], fill=(0, 0, 0, 120)) 
     bg_image = Image.alpha_composite(bg_image.convert("RGBA"), overlay)
     draw = ImageDraw.Draw(bg_image)
-    draw.text((x, y), wrapped_text, font=font, fill="white", align="center")
+    draw.text((x, y), f"\"{wrapped_text}\"", font=font, fill="white", align="center")
     if author:
         author_x = rect_x2 - author_width - 20 
         author_y = rect_y2 - author_height - 20 
@@ -288,6 +291,40 @@ def show_quotes_list(num):
         print(f"{quote.get('id')} - \"{quote.get('quote')}\" by \"{quote.get('author', 'Unknown')}\"")
 
 
+def schedule_task(from_online=False):
+    python_exe = sys.executable
+    if not python_exe or not os.path.exists(python_exe):
+        print("Error: Python executable not found.")
+        return
+    script_path = os.path.abspath(__file__)
+    check_cmd = 'schtasks /Query /TN "WallQuote"'
+    result = subprocess.run(check_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if "ERROR:" not in result.stderr:
+        print("Task 'WallQuote' already exists. ❌ Not creating a new one.")
+        return
+    if from_online:
+        task_command = f'"{python_exe}" "{script_path}" --daily --online'
+    else:
+        task_command = f'"{python_exe}" "{script_path}" --daily'
+    create_task_cmd = (
+        f'schtasks /Create /TN "WallQuote" /TR "{task_command}" '
+        f'/SC DAILY /ST 00:01 /F /RL HIGHEST'
+    )
+    try:
+        subprocess.run(create_task_cmd, shell=True, check=True)
+        print("Scheduled task 'WallQuote' created successfully! 🎉")
+    except subprocess.CalledProcessError as e:
+        print(f"Error scheduling task: {e}")
+
+def unschedule_task():
+    delete_task_cmd = 'schtasks /Delete /TN "WallQuote" /F'
+    try:
+        subprocess.run(delete_task_cmd, shell=True, check=True)
+        print("Scheduled task 'WallQuote' has been removed successfully. ✅")
+    except subprocess.CalledProcessError as e:
+        print(f"Error removing scheduled task: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="wallquote",
@@ -298,7 +335,9 @@ def main():
     # ------------------[ Main Actions ]------------------ #
     action_group = parser.add_argument_group("🟢 Main Actions (Choose One)")
     exclusive_actions = action_group.add_mutually_exclusive_group(required=True)
-    exclusive_actions.add_argument("--daily", action="store_true", help="📆 Set the daily quote wallpaper.")
+    exclusive_actions.add_argument("--daily", action="store_true", help="📆 Set the daily quote wallpaper. Doesn't schedule automatically.")
+    exclusive_actions.add_argument("--schedule", action="store_true", help="📆 Schedule the daily quote wallpaper to run every day.")
+    exclusive_actions.add_argument("--unschedule", action="store_true", help="📆 Unschedule the daily quote wallpaper.")
     exclusive_actions.add_argument("--random", action="store_true", help="🎲 Generate a random quote wallpaper.")
     exclusive_actions.add_argument("--create", action="store_true", help="🎨 Create a new wallpaper with a custom quote.")
     exclusive_actions.add_argument("--quotes", action="store_true", help="📝 Manage quotes: list, insert, or delete.")
@@ -334,6 +373,10 @@ def main():
     wallpaper = None
     if args.daily:
         set_daily_wallpaper(args.online)
+    elif args.schedule:
+        schedule_task(args.online)
+    elif args.unschedule:
+        unschedule_task()
     elif args.random:
         wallpaper_path, wallpaper = get_random_quote_wallpaper(args.save_path, args.online)
     elif args.create:
