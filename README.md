@@ -50,12 +50,23 @@ wallquote --random --show
 This won't schedule the wallpaper to appear everyday.
 ```bash
 wallquote --daily
-```
 
-#### **Get quotes from online API (can be used with --daily, --random or --create):**
-
+#### **Get stoic quotes from online API:**
+Argument --online can be used with  --daily, --random or --create. It will revert to getting quotes from quotes.json if API is not working.
 ```bash
 wallquote --daily --online
+```
+
+#### **Schedule daily quote wallpaper:**
+Use command line in admin mode.
+```bash
+wallquote --schedule 
+```
+
+#### **Unschedule daily quote wallpaper:**
+Use command line in admin mode.
+```bash
+wallquote --unschedule 
 ```
 
 ### 📖 **Quote Management**
