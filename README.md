@@ -47,9 +47,21 @@ wallquote --random --show
 ```
 
 #### **Set daily quote wallpaper:**
-
+This won't schedule the wallpaper to appear everyday.
 ```bash
 wallquote --daily
+```
+
+#### **Schedule daily quote wallpaper:**
+Use command line in admin mode.
+```bash
+wallquote --schedule 
+```
+
+#### **Unschedule daily quote wallpaper:**
+Use command line in admin mode.
+```bash
+wallquote --unschedule 
 ```
 
 ### 📖 **Quote Management**
