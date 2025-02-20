@@ -52,16 +52,10 @@ This won't schedule the wallpaper to appear everyday.
 wallquote --daily
 ```
 
-#### **Schedule daily quote wallpaper:**
-Use command line in admin mode.
-```bash
-wallquote --schedule 
-```
+#### **Get quotes from online API (can be used with --daily, --random or --create):**
 
-#### **Unschedule daily quote wallpaper:**
-Use command line in admin mode.
 ```bash
-wallquote --unschedule 
+wallquote --daily --online
 ```
 
 ### 📖 **Quote Management**
